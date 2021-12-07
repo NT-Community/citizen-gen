@@ -12,11 +12,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/NT-community/citizen-gen/erc721"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
-	"github.com/rbrick/citgen/erc721"
 )
 
 func init() {

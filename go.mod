@@ -1,4 +1,4 @@
-module github.com/rbrick/citgen
+module github.com/NT-community/citizen-gen
 
 go 1.16
 
