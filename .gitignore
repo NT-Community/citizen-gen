@@ -3,3 +3,4 @@ vendor/
 *.exe
 *.o
 *.png
+images/

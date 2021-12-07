@@ -3,12 +3,15 @@ package main
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"image"
 	"image/png"
+	"io/ioutil"
 	"log"
 	"math/big"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -26,6 +29,8 @@ func init() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+
+	os.Mkdir("images", os.ModePerm)
 }
 
 func main() {
@@ -45,6 +50,14 @@ func main() {
 
 	e.GET("/:dimensions/:id", func(c echo.Context) error {
 		// TODO: implement caching of images on
+
+		if _, err := os.Stat(fmt.Sprintf("./images/%s.png", c.Request().URL.Path)); err == nil {
+
+			file, _ := os.Open(fmt.Sprintf("./images/%s.png", c.Request().URL.Path))
+			b, _ := ioutil.ReadAll(file)
+			_, err := c.Response().Writer.Write(b)
+			return err
+		}
 
 		dimensions := c.Param("dimensions")
 		id, err := strconv.Atoi(c.Param("id"))
@@ -107,6 +120,12 @@ func main() {
 		imgGen := newImageGenerator(width, height, fetchedImages)
 
 		finalImage := imgGen.Generate()
+
+		os.Mkdir(filepath.Join("images", dimensions), os.ModePerm)
+
+		f, _ := os.Create(fmt.Sprintf("images/%s.png", c.Request().URL.Path))
+
+		png.Encode(f, finalImage)
 
 		return png.Encode(c.Response().Writer, finalImage)
 	})
