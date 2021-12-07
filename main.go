@@ -37,7 +37,7 @@ func main() {
 	client, err := ethclient.Dial(os.Getenv("RPC"))
 
 	if err != nil {
-		log.Fatalln(client)
+		log.Fatalln(err)
 	}
 
 	contract, err := erc721.NewErc721(common.HexToAddress(os.Getenv("CONTRACT")), client)
@@ -130,5 +130,5 @@ func main() {
 		return png.Encode(c.Response().Writer, finalImage)
 	})
 
-	e.Start(os.Getenv("HOST"))
+	e.StartTLS(os.Getenv("HOST"), os.Getenv("CERT"), os.Getenv("KEY"))
 }

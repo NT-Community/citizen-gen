@@ -4,3 +4,5 @@ vendor/
 *.o
 *.png
 images/
+key.pem
+cert.pem
