@@ -92,6 +92,8 @@ func main() {
 
 		rawJson, _ := base64.StdEncoding.DecodeString(strings.Split(tokenUri, ",")[1])
 
+		rawJson = []byte(strings.Replace(string(rawJson), "\"\"", "\"\\\"", -1))
+
 		var decodedJson map[string]json.RawMessage
 
 		if err := json.Unmarshal(rawJson, &decodedJson); err != nil {
@@ -112,7 +114,7 @@ func main() {
 
 			img, err := fetchImage(imgUrl.Href)
 			if err != nil {
-				return c.String(http.StatusBadRequest, err.Error())
+				continue
 			}
 			fetchedImages = append(fetchedImages, img)
 		}
@@ -130,5 +132,5 @@ func main() {
 		return png.Encode(c.Response().Writer, finalImage)
 	})
 
-	e.StartTLS(os.Getenv("HOST"), os.Getenv("CERT"), os.Getenv("KEY"))
+	log.Fatalln(e.StartTLS(os.Getenv("HOST"), os.Getenv("CERT"), os.Getenv("KEY")))
 }
