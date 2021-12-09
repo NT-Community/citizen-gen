@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -20,6 +21,10 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
+)
+
+var (
+	descriptionRegex = regexp.MustCompile(`(\"description\":\s\")(.+)(\",)`)
 )
 
 func init() {
@@ -51,13 +56,7 @@ func main() {
 	e.GET("/:dimensions/:id", func(c echo.Context) error {
 		// TODO: implement caching of images on
 
-		if _, err := os.Stat(fmt.Sprintf("./images/%s.png", c.Request().URL.Path)); err == nil {
-
-			file, _ := os.Open(fmt.Sprintf("./images/%s.png", c.Request().URL.Path))
-			b, _ := ioutil.ReadAll(file)
-			_, err := c.Response().Writer.Write(b)
-			return err
-		}
+		path := c.Request().URL.Path
 
 		dimensions := c.Param("dimensions")
 		id, err := strconv.Atoi(c.Param("id"))
@@ -70,6 +69,20 @@ func main() {
 
 		if len(whArray) != 2 {
 			return c.String(http.StatusBadRequest, "invalid length")
+		}
+
+		noBg := c.QueryParams().Get("no-bg") != ""
+
+		if noBg {
+			path += "_no_bg" // build on to the paths based on the passed in parameters
+		}
+
+		if _, err := os.Stat(fmt.Sprintf("./images/%s.png", path)); err == nil {
+
+			file, _ := os.Open(fmt.Sprintf("./images/%s.png", path))
+			b, _ := ioutil.ReadAll(file)
+			_, err := c.Response().Writer.Write(b)
+			return err
 		}
 
 		width, err := strconv.Atoi(whArray[0])
@@ -92,7 +105,7 @@ func main() {
 
 		rawJson, _ := base64.StdEncoding.DecodeString(strings.Split(tokenUri, ",")[1])
 
-		rawJson = []byte(strings.Replace(string(rawJson), "\"\"", "\"\\\"", -1))
+		rawJson = []byte(descriptionRegex.ReplaceAllString(string(rawJson), ""))
 
 		var decodedJson map[string]json.RawMessage
 
@@ -121,16 +134,23 @@ func main() {
 
 		imgGen := newImageGenerator(width, height, fetchedImages)
 
+		imgGen.NoBackground = noBg
+
 		finalImage := imgGen.Generate()
 
 		os.Mkdir(filepath.Join("images", dimensions), os.ModePerm)
 
-		f, _ := os.Create(fmt.Sprintf("images/%s.png", c.Request().URL.Path))
+		f, _ := os.Create(fmt.Sprintf("images/%s.png", path))
 
 		png.Encode(f, finalImage)
 
 		return png.Encode(c.Response().Writer, finalImage)
 	})
 
-	log.Fatalln(e.StartTLS(os.Getenv("HOST"), os.Getenv("CERT"), os.Getenv("KEY")))
+	if os.Getenv("CERT") != "" && os.Getenv("KEY") != "" {
+		log.Fatalln(e.StartTLS(os.Getenv("HOST"), os.Getenv("CERT"), os.Getenv("KEY")))
+	} else {
+		log.Fatalln(e.Start(os.Getenv("HOST")))
+	}
+
 }

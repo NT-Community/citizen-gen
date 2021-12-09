@@ -7,5 +7,6 @@ require (
 	github.com/ethereum/go-ethereum v1.10.13 // indirect
 	github.com/joho/godotenv v1.4.0 // indirect
 	github.com/labstack/echo/v4 v4.6.1 // indirect
+	golang.org/x/crypto v0.0.0-20211202192323-5770296d904e // indirect
 	golang.org/x/image v0.0.0-20211028202545-6944b10bf410 // indirect
 )

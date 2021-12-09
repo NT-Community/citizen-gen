@@ -6,3 +6,4 @@ vendor/
 images/
 key.pem
 cert.pem
+citizen-gen

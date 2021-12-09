@@ -13,13 +13,18 @@ import (
 
 type ImageGenerator struct {
 	Width, Height int
+	NoBackground  bool
 	Layers        []image.Image
 }
 
 func (i *ImageGenerator) Generate() image.Image {
 	base := image.NewRGBA(image.Rect(0, 0, i.Width, i.Height))
 
-	for _, img := range i.Layers {
+	for idx, img := range i.Layers {
+		if i.NoBackground && idx == 0 {
+			// don't draw background if requested otherwise
+			continue
+		}
 
 		rw, rh := 0, 0
 		if img.Bounds().Dx() != base.Rect.Dx() {
