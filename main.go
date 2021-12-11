@@ -25,6 +25,7 @@ import (
 
 var (
 	descriptionRegex = regexp.MustCompile(`(\"description\":\s\")(.+)(\",)`)
+	santaHat         image.Image
 )
 
 func init() {
@@ -36,6 +37,21 @@ func init() {
 	}
 
 	os.Mkdir("images", os.ModePerm)
+
+	santaHatFile, err := os.Open("assets/santa_hat.png")
+
+	fmt.Println(err)
+	// ignore if not present
+	if err == nil {
+
+		img, err := png.Decode(santaHatFile)
+
+		if err != nil {
+			log.Println(err)
+		} else {
+			santaHat = img
+		}
+	}
 }
 
 func main() {
@@ -71,10 +87,15 @@ func main() {
 			return c.String(http.StatusBadRequest, "invalid length")
 		}
 
-		noBg := c.QueryParams().Get("no-bg") != ""
+		noBg := c.QueryParam("no-bg") != ""
+		santaHat := c.QueryParam("santa-hat") != ""
 
 		if noBg {
 			path += "_no_bg" // build on to the paths based on the passed in parameters
+		}
+
+		if santaHat {
+			path += "_santa"
 		}
 
 		if _, err := os.Stat(fmt.Sprintf("./images/%s.png", path)); err == nil {
@@ -135,6 +156,7 @@ func main() {
 		imgGen := newImageGenerator(width, height, fetchedImages)
 
 		imgGen.NoBackground = noBg
+		imgGen.SantaHat = santaHat
 
 		finalImage := imgGen.Generate()
 

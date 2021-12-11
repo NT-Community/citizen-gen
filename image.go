@@ -12,9 +12,9 @@ import (
 )
 
 type ImageGenerator struct {
-	Width, Height int
-	NoBackground  bool
-	Layers        []image.Image
+	Width, Height          int
+	NoBackground, SantaHat bool
+	Layers                 []image.Image
 }
 
 func (i *ImageGenerator) Generate() image.Image {
@@ -40,6 +40,10 @@ func (i *ImageGenerator) Generate() image.Image {
 		}
 
 		draw.Draw(base, img.Bounds(), img, image.Pt(0, 0), draw.Over)
+	}
+
+	if i.SantaHat {
+		draw.Draw(base, santaHat.Bounds(), santaHat, image.Pt(0, 0), draw.Over)
 	}
 	return base
 }
