@@ -24,9 +24,20 @@ import (
 )
 
 var (
-	descriptionRegex = regexp.MustCompile(`(\"description\":\s\")(.+)(\",)`)
-	santaHat         image.Image
+	descriptionRegex              = regexp.MustCompile(`(\"description\":\s\")(.+)(\",)`)
+	santaHat, emptyFist, snowBall image.Image
 )
+
+// loads an image without any error checks
+func mustLoadImage(path string) image.Image {
+	file, err := os.Open(path)
+	// ignore if not present
+	if err == nil {
+		img, _ := png.Decode(file)
+		return img
+	}
+	return nil
+}
 
 func init() {
 	// load the .env file
@@ -38,20 +49,9 @@ func init() {
 
 	os.Mkdir("images", os.ModePerm)
 
-	santaHatFile, err := os.Open("assets/santa_hat.png")
-
-	fmt.Println(err)
-	// ignore if not present
-	if err == nil {
-
-		img, err := png.Decode(santaHatFile)
-
-		if err != nil {
-			log.Println(err)
-		} else {
-			santaHat = img
-		}
-	}
+	santaHat = mustLoadImage("assets/santa_hat.png")
+	emptyFist = mustLoadImage("assets/empty_fist.png")
+	snowBall = mustLoadImage("assets/emptyhand_snowball.png")
 }
 
 func main() {
@@ -89,6 +89,7 @@ func main() {
 
 		noBg := c.QueryParam("no-bg") != ""
 		santaHat := c.QueryParam("santa-hat") != ""
+		snowball := c.QueryParam("snowball") != ""
 
 		if noBg {
 			path += "_no_bg" // build on to the paths based on the passed in parameters
@@ -96,6 +97,10 @@ func main() {
 
 		if santaHat {
 			path += "_santa"
+		}
+
+		if snowball {
+			path += "_snowball"
 		}
 
 		if _, err := os.Stat(fmt.Sprintf("./images/%s.png", path)); err == nil {
@@ -142,7 +147,7 @@ func main() {
 			return c.String(http.StatusBadRequest, err.Error())
 		}
 
-		var fetchedImages []image.Image
+		var fetchedImages []*FetchedImage
 
 		for _, imgUrl := range imgs {
 
@@ -157,6 +162,7 @@ func main() {
 
 		imgGen.NoBackground = noBg
 		imgGen.SantaHat = santaHat
+		imgGen.Snowball = snowball
 
 		finalImage := imgGen.Generate()
 

@@ -4,6 +4,7 @@ import (
 	"image"
 	"image/draw"
 	"net/http"
+	"strings"
 
 	"github.com/disintegration/imaging"
 
@@ -11,19 +12,34 @@ import (
 	_ "image/png"
 )
 
+type FetchedImage struct {
+	img image.Image
+	url string
+}
+
 type ImageGenerator struct {
-	Width, Height          int
-	NoBackground, SantaHat bool
-	Layers                 []image.Image
+	Width, Height                    int
+	NoBackground, SantaHat, Snowball bool
+	Layers                           []*FetchedImage
 }
 
 func (i *ImageGenerator) Generate() image.Image {
 	base := image.NewRGBA(image.Rect(0, 0, i.Width, i.Height))
 
-	for idx, img := range i.Layers {
+	for idx, fetchedImg := range i.Layers {
+		img := fetchedImg.img
 		if i.NoBackground && idx == 0 {
 			// don't draw background if requested otherwise
 			continue
+		}
+
+		if i.Snowball && strings.Contains(fetchedImg.url, "weapon") {
+			continue // don't render the weapon with a snowball
+		}
+
+		if i.Snowball && strings.Contains(fetchedImg.url, "hand") {
+			img = emptyFist
+			draw.Draw(img.(*image.NRGBA), emptyFist.Bounds(), snowBall, image.Pt(0, 0), draw.Over)
 		}
 
 		rw, rh := 0, 0
@@ -48,7 +64,7 @@ func (i *ImageGenerator) Generate() image.Image {
 	return base
 }
 
-func newImageGenerator(w, h int, layers []image.Image) *ImageGenerator {
+func newImageGenerator(w, h int, layers []*FetchedImage) *ImageGenerator {
 	return &ImageGenerator{
 		Width:  w,
 		Height: h,
@@ -56,7 +72,7 @@ func newImageGenerator(w, h int, layers []image.Image) *ImageGenerator {
 	}
 }
 
-func fetchImage(url string) (image.Image, error) {
+func fetchImage(url string) (*FetchedImage, error) {
 	resp, err := http.Get(url)
 
 	if err != nil {
@@ -64,5 +80,5 @@ func fetchImage(url string) (image.Image, error) {
 	}
 
 	img, _, err := image.Decode(resp.Body)
-	return img, err
+	return &FetchedImage{img, url}, err
 }
