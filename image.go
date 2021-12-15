@@ -26,6 +26,10 @@ type ImageGenerator struct {
 func (i *ImageGenerator) Generate() image.Image {
 	base := image.NewRGBA(image.Rect(0, 0, i.Width, i.Height))
 
+	if i.SantaHat {
+		i.Layers = append(i.Layers, &FetchedImage{santaHat, ""})
+	}
+
 	for idx, fetchedImg := range i.Layers {
 		img := fetchedImg.img
 		if i.NoBackground && idx == 0 {
@@ -58,9 +62,6 @@ func (i *ImageGenerator) Generate() image.Image {
 		draw.Draw(base, img.Bounds(), img, image.Pt(0, 0), draw.Over)
 	}
 
-	if i.SantaHat {
-		draw.Draw(base, santaHat.Bounds(), santaHat, image.Pt(0, 0), draw.Over)
-	}
 	return base
 }
 
