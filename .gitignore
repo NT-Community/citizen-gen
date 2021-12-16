@@ -8,3 +8,5 @@ key.pem
 cert.pem
 citizen-gen
 !assets/santa_hat.png
+!assets/empty_fist.png
+!assets/emptyhand_snowball.png
