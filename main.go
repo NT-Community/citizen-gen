@@ -54,6 +54,121 @@ func init() {
 	snowBall = mustLoadImage("assets/emptyhand_snowball.png")
 }
 
+func season(contract *erc721.Erc721) func(c echo.Context) error {
+	return func(c echo.Context) error {
+		return generate(c, contract)
+	}
+}
+
+func generate(c echo.Context, contract *erc721.Erc721) error {
+	// TODO: implement caching of images on
+
+	path := c.Request().URL.Path
+
+	dimensions := c.Param("dimensions")
+	id, err := strconv.Atoi(c.Param("id"))
+
+	if err != nil {
+		return c.String(http.StatusBadRequest, err.Error())
+	}
+
+	whArray := strings.Split(dimensions, "x")
+
+	if len(whArray) != 2 {
+		return c.String(http.StatusBadRequest, "invalid length")
+	}
+
+	noBg := c.QueryParam("no-bg") != ""
+	santaHat := c.QueryParam("santa-hat") != ""
+	snowball := c.QueryParam("snowball") != ""
+
+	if noBg {
+		path += "_no_bg" // build on to the paths based on the passed in parameters
+	}
+
+	if santaHat {
+		path += "_santa"
+	}
+
+	if snowball {
+		path += "_snowball"
+	}
+
+	season := strings.Split(c.Path()[1:], "/")[0]
+
+	if _, err := os.Stat(fmt.Sprintf("./images/%s.png", path)); err == nil {
+
+		file, _ := os.Open(fmt.Sprintf("./images/%s.png", path))
+		b, _ := ioutil.ReadAll(file)
+		_, err := c.Response().Writer.Write(b)
+		return err
+	}
+
+	width, err := strconv.Atoi(whArray[0])
+
+	if err != nil {
+		return c.String(http.StatusBadRequest, err.Error())
+	}
+
+	height, err := strconv.Atoi(whArray[1])
+
+	if err != nil {
+		return c.String(http.StatusBadRequest, err.Error())
+	}
+
+	tokenUri, err := contract.TokenURI(nil, big.NewInt(int64(id)))
+
+	if err != nil {
+		return c.String(http.StatusBadRequest, err.Error())
+	}
+
+	rawJson, _ := base64.StdEncoding.DecodeString(strings.Split(tokenUri, ",")[1])
+
+	rawJson = []byte(descriptionRegex.ReplaceAllString(string(rawJson), ""))
+
+	var decodedJson map[string]json.RawMessage
+
+	if err := json.Unmarshal(rawJson, &decodedJson); err != nil {
+		return c.String(http.StatusBadRequest, err.Error())
+	}
+
+	xml, _ := base64.StdEncoding.DecodeString(strings.Split(string(decodedJson["image_data"]), ",")[1])
+
+	imgs, err := collectImages(xml)
+
+	if err != nil {
+		return c.String(http.StatusBadRequest, err.Error())
+	}
+
+	var fetchedImages []*FetchedImage
+
+	for _, imgUrl := range imgs {
+
+		img, err := fetchImage(imgUrl.Href)
+		if err != nil {
+			continue
+		}
+		fetchedImages = append(fetchedImages, img)
+	}
+
+	imgGen := newImageGenerator(width, height, fetchedImages)
+
+	imgGen.NoBackground = noBg
+	imgGen.SantaHat = santaHat
+	imgGen.Snowball = snowball
+
+	finalImage := imgGen.Generate()
+
+	os.Mkdir(filepath.Join("images", season), os.ModePerm)
+	os.Mkdir(filepath.Join("images", season, dimensions), os.ModePerm)
+
+	f, err := os.Create(fmt.Sprintf("images/%s.png", path[1:]))
+
+	png.Encode(f, finalImage)
+
+	return png.Encode(c.Response().Writer, finalImage)
+}
+
 func main() {
 	client, err := ethclient.Dial(os.Getenv("RPC"))
 
@@ -61,7 +176,13 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	contract, err := erc721.NewErc721(common.HexToAddress(os.Getenv("CONTRACT")), client)
+	s1contract, err := erc721.NewErc721(common.HexToAddress(os.Getenv("S1_CONTRACT")), client)
+
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	s2contract, err := erc721.NewErc721(common.HexToAddress(os.Getenv("S2_CONTRACT")), client)
 
 	if err != nil {
 		log.Fatalln(err)
@@ -69,111 +190,8 @@ func main() {
 
 	e := echo.New() // create our new echo handler
 
-	e.GET("/:dimensions/:id", func(c echo.Context) error {
-		// TODO: implement caching of images on
-
-		path := c.Request().URL.Path
-
-		dimensions := c.Param("dimensions")
-		id, err := strconv.Atoi(c.Param("id"))
-
-		if err != nil {
-			return c.String(http.StatusBadRequest, err.Error())
-		}
-
-		whArray := strings.Split(dimensions, "x")
-
-		if len(whArray) != 2 {
-			return c.String(http.StatusBadRequest, "invalid length")
-		}
-
-		noBg := c.QueryParam("no-bg") != ""
-		santaHat := c.QueryParam("santa-hat") != ""
-		snowball := c.QueryParam("snowball") != ""
-
-		if noBg {
-			path += "_no_bg" // build on to the paths based on the passed in parameters
-		}
-
-		if santaHat {
-			path += "_santa"
-		}
-
-		if snowball {
-			path += "_snowball"
-		}
-
-		if _, err := os.Stat(fmt.Sprintf("./images/%s.png", path)); err == nil {
-
-			file, _ := os.Open(fmt.Sprintf("./images/%s.png", path))
-			b, _ := ioutil.ReadAll(file)
-			_, err := c.Response().Writer.Write(b)
-			return err
-		}
-
-		width, err := strconv.Atoi(whArray[0])
-
-		if err != nil {
-			return c.String(http.StatusBadRequest, err.Error())
-		}
-
-		height, err := strconv.Atoi(whArray[1])
-
-		if err != nil {
-			return c.String(http.StatusBadRequest, err.Error())
-		}
-
-		tokenUri, err := contract.TokenURI(nil, big.NewInt(int64(id)))
-
-		if err != nil {
-			return c.String(http.StatusBadRequest, err.Error())
-		}
-
-		rawJson, _ := base64.StdEncoding.DecodeString(strings.Split(tokenUri, ",")[1])
-
-		rawJson = []byte(descriptionRegex.ReplaceAllString(string(rawJson), ""))
-
-		var decodedJson map[string]json.RawMessage
-
-		if err := json.Unmarshal(rawJson, &decodedJson); err != nil {
-			return c.String(http.StatusBadRequest, err.Error())
-		}
-
-		xml, _ := base64.StdEncoding.DecodeString(strings.Split(string(decodedJson["image_data"]), ",")[1])
-
-		imgs, err := collectImages(xml)
-
-		if err != nil {
-			return c.String(http.StatusBadRequest, err.Error())
-		}
-
-		var fetchedImages []*FetchedImage
-
-		for _, imgUrl := range imgs {
-
-			img, err := fetchImage(imgUrl.Href)
-			if err != nil {
-				continue
-			}
-			fetchedImages = append(fetchedImages, img)
-		}
-
-		imgGen := newImageGenerator(width, height, fetchedImages)
-
-		imgGen.NoBackground = noBg
-		imgGen.SantaHat = santaHat
-		imgGen.Snowball = snowball
-
-		finalImage := imgGen.Generate()
-
-		os.Mkdir(filepath.Join("images", dimensions), os.ModePerm)
-
-		f, _ := os.Create(fmt.Sprintf("images/%s.png", path))
-
-		png.Encode(f, finalImage)
-
-		return png.Encode(c.Response().Writer, finalImage)
-	})
+	e.GET("/s1/:dimensions/:id", season(s1contract))
+	e.GET("/s2/:dimensions/:id", season(s2contract))
 
 	if os.Getenv("CERT") != "" && os.Getenv("KEY") != "" {
 		log.Fatalln(e.StartTLS(os.Getenv("HOST"), os.Getenv("CERT"), os.Getenv("KEY")))
