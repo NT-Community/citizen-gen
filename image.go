@@ -4,6 +4,7 @@ import (
 	"image"
 	"image/draw"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/disintegration/imaging"
@@ -12,15 +13,34 @@ import (
 	_ "image/png"
 )
 
+var IPFSRegex = regexp.MustCompile(`(https:\/\/neotokyo\.mypinata\.cloud\/ipfs)\/(Qm[\w]+)\/(.+)`)
+
+type IPFSBucket struct {
+	Male, Female string
+}
+
+// season => IPFS buckets based on male/female
+var IPFSBuckets map[int]IPFSBucket = map[int]IPFSBucket{
+	1: {
+		Male:   "QmPLW6u5MRut1b8iyVc47ET5zAj9VaG2GwyjcuKLoetWsT",
+		Female: "QmRW92faA9rXWS5sBNLZRHDXRPGNqaQTv8TWrWtbJ3LjB4",
+	},
+	2: {
+		Male:   "QmeqeBpsYTuJL8AZhY9fGBeTj9QuvMVqaZeRWFnjA24QEE",
+		Female: "QmeqeBpsYTuJL8AZhY9fGBeTj9QuvMVqaZeRWFnjA24QEE",
+	},
+}
+
 type FetchedImage struct {
 	img image.Image
 	url string
 }
 
 type ImageGenerator struct {
-	Width, Height                    int
-	NoBackground, SantaHat, Snowball bool
-	Layers                           []*FetchedImage
+	Width, Height                            int
+	NoBackground, SantaHat, Snowball, Female bool
+	SeasonNumber                             int
+	Layers                                   []*FetchedImage
 }
 
 func (i *ImageGenerator) Generate() image.Image {
@@ -32,6 +52,7 @@ func (i *ImageGenerator) Generate() image.Image {
 
 	for idx, fetchedImg := range i.Layers {
 		img := fetchedImg.img
+
 		if i.NoBackground && idx == 0 {
 			// don't draw background if requested otherwise
 			continue

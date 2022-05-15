@@ -54,13 +54,13 @@ func init() {
 	snowBall = mustLoadImage("assets/emptyhand_snowball.png")
 }
 
-func season(contract *erc721.Erc721) func(c echo.Context) error {
+func season(contract *erc721.Erc721, season int) func(c echo.Context) error {
 	return func(c echo.Context) error {
-		return generate(c, contract)
+		return generate(c, season, contract)
 	}
 }
 
-func generate(c echo.Context, contract *erc721.Erc721) error {
+func generate(c echo.Context, season int, contract *erc721.Erc721) error {
 	// TODO: implement caching of images on
 
 	path := c.Request().URL.Path
@@ -81,6 +81,7 @@ func generate(c echo.Context, contract *erc721.Erc721) error {
 	noBg := c.QueryParam("no-bg") != ""
 	santaHat := c.QueryParam("santa-hat") != ""
 	snowball := c.QueryParam("snowball") != ""
+	female := c.QueryParam("female") != ""
 
 	if noBg {
 		path += "_no_bg" // build on to the paths based on the passed in parameters
@@ -94,7 +95,11 @@ func generate(c echo.Context, contract *erc721.Erc721) error {
 		path += "_snowball"
 	}
 
-	season := strings.Split(c.Path()[1:], "/")[0]
+	// a citizen that was forced to be rendered using female traits
+	if female {
+		path += "_female"
+	}
+	seasonString := fmt.Sprintf("s%d", season)
 
 	if _, err := os.Stat(fmt.Sprintf("./images/%s.png", path)); err == nil {
 
@@ -143,8 +148,29 @@ func generate(c echo.Context, contract *erc721.Erc721) error {
 	var fetchedImages []*FetchedImage
 
 	for _, imgUrl := range imgs {
+		fetchUrl := imgUrl.Href
 
-		img, err := fetchImage(imgUrl.Href)
+		if female {
+			// force a replace to the female IPFS bucket
+
+			// highly experimental
+			fetchUrl = IPFSRegex.ReplaceAllString(fetchUrl, fmt.Sprintf("$1/%s/$3", IPFSBuckets[season].Female))
+
+			if strings.Contains(fetchUrl, "body") || strings.Contains(fetchUrl, "hand") || strings.Contains(fetchUrl, "head") {
+				groups := IPFSRegex.FindAllStringSubmatch(fetchUrl, -1)
+				if strings.Contains(groups[0][3], "0.png") {
+					replaceString := "0-0.png"
+
+					if strings.Contains(fetchUrl, "hand") {
+						replaceString = "fist/" + replaceString
+					}
+
+					fetchUrl = strings.ReplaceAll(fetchUrl, groups[0][3], fmt.Sprintf("%s/%s", strings.Split(groups[0][3], "/")[0], replaceString))
+				}
+			}
+		}
+
+		img, err := fetchImage(fetchUrl)
 		if err != nil {
 			continue
 		}
@@ -156,13 +182,15 @@ func generate(c echo.Context, contract *erc721.Erc721) error {
 	imgGen.NoBackground = noBg
 	imgGen.SantaHat = santaHat
 	imgGen.Snowball = snowball
+	imgGen.SeasonNumber = season
+	imgGen.Female = female
 
 	finalImage := imgGen.Generate()
 
-	os.Mkdir(filepath.Join("images", season), os.ModePerm)
-	os.Mkdir(filepath.Join("images", season, dimensions), os.ModePerm)
+	os.Mkdir(filepath.Join("images", seasonString), os.ModePerm)
+	os.Mkdir(filepath.Join("images", seasonString, dimensions), os.ModePerm)
 
-	f, err := os.Create(fmt.Sprintf("images/%s.png", path[1:]))
+	f, _ := os.Create(fmt.Sprintf("images/%s.png", path[1:]))
 
 	png.Encode(f, finalImage)
 
@@ -190,8 +218,8 @@ func main() {
 
 	e := echo.New() // create our new echo handler
 
-	e.GET("/s1/:dimensions/:id", season(s1contract))
-	e.GET("/s2/:dimensions/:id", season(s2contract))
+	e.GET("/s1/:dimensions/:id", season(s1contract, 1))
+	e.GET("/s2/:dimensions/:id", season(s2contract, 2))
 
 	if os.Getenv("CERT") != "" && os.Getenv("KEY") != "" {
 		log.Fatalln(e.StartTLS(os.Getenv("HOST"), os.Getenv("CERT"), os.Getenv("KEY")))
