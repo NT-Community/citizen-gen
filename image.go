@@ -23,7 +23,7 @@ type IPFSBucket struct {
 var IPFSBuckets map[int]IPFSBucket = map[int]IPFSBucket{
 	1: {
 		Male:   "QmPLW6u5MRut1b8iyVc47ET5zAj9VaG2GwyjcuKLoetWsT",
-		Female: "QmRW92faA9rXWS5sBNLZRHDXRPGNqaQTv8TWrWtbJ3LjB4",
+		Female: "QmPVfdHHdjyZb6BKHhwaJ1eEdCx9Jz4mvCn4KHiCJQaB8e",
 	},
 	2: {
 		Male:   "QmeqeBpsYTuJL8AZhY9fGBeTj9QuvMVqaZeRWFnjA24QEE",
