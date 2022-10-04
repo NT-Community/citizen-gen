@@ -2,6 +2,7 @@ package main
 
 import (
 	"image"
+	"image/color"
 	"image/draw"
 	"net/http"
 	"regexp"
@@ -37,14 +38,17 @@ type FetchedImage struct {
 }
 
 type ImageGenerator struct {
-	Width, Height                            int
-	NoBackground, SantaHat, Snowball, Female bool
-	SeasonNumber                             int
-	Layers                                   []*FetchedImage
+	Width, Height                                 int
+	NoBackground, SantaHat, Snowball, Female, PFP bool
+
+	BackgroundColor *color.RGBA
+
+	SeasonNumber int
+	Layers       []*FetchedImage
 }
 
 func (i *ImageGenerator) Generate() image.Image {
-	base := image.NewRGBA(image.Rect(0, 0, i.Width, i.Height))
+	base := image.NewNRGBA(image.Rect(0, 0, 1200, 1200))
 
 	if i.SantaHat {
 		i.Layers = append(i.Layers, &FetchedImage{santaHat, ""})
@@ -53,7 +57,13 @@ func (i *ImageGenerator) Generate() image.Image {
 	for idx, fetchedImg := range i.Layers {
 		img := fetchedImg.img
 
-		if i.NoBackground && idx == 0 {
+		if idx == 0 && i.BackgroundColor != nil {
+			img = image.NewUniform(i.BackgroundColor)
+
+			draw.Draw(base, base.Bounds(), img, image.Pt(0, 0), draw.Over)
+			continue
+
+		} else if i.NoBackground && idx == 0 {
 			// don't draw background if requested otherwise
 			continue
 		}
@@ -67,30 +77,39 @@ func (i *ImageGenerator) Generate() image.Image {
 			draw.Draw(img.(*image.NRGBA), emptyFist.Bounds(), snowBall, image.Pt(0, 0), draw.Over)
 		}
 
-		rw, rh := 0, 0
-		if img.Bounds().Dx() != base.Rect.Dx() {
-			rw = base.Rect.Dx()
-		}
-
-		if img.Bounds().Dy() != base.Rect.Dy() {
-			rh = base.Rect.Dy()
-		}
-
-		if rw > 0 || rh > 0 {
-			img = imaging.Resize(img, rw, rh, imaging.NearestNeighbor)
-		}
-
 		draw.Draw(base, img.Bounds(), img, image.Pt(0, 0), draw.Over)
 	}
 
-	return base
+	var finalizedImage image.Image = base
+
+	if i.PFP {
+		startX := finalizedImage.Bounds().Dx() / 2
+		startY := finalizedImage.Bounds().Dy() / 12
+		finalizedImage = imaging.Crop(finalizedImage, image.Rect(startX-320, startY, startX+320, startY+640))
+	} else {
+		rw, rh := 0, 0
+		if base.Bounds().Dx() != i.Width {
+			rw = i.Width
+		}
+
+		if base.Bounds().Dy() != i.Height {
+			rh = i.Height
+		}
+
+		if rw > 0 || rh > 0 {
+			finalizedImage = imaging.Resize(base, rw, rh, imaging.NearestNeighbor)
+		}
+	}
+
+	return finalizedImage
 }
 
 func newImageGenerator(w, h int, layers []*FetchedImage) *ImageGenerator {
 	return &ImageGenerator{
-		Width:  w,
-		Height: h,
-		Layers: layers,
+		BackgroundColor: nil,
+		Width:           w,
+		Height:          h,
+		Layers:          layers,
 	}
 }
 

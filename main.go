@@ -3,8 +3,10 @@ package main
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
+	"image/color"
 	"image/png"
 	"io/ioutil"
 	"log"
@@ -25,6 +27,7 @@ import (
 
 var (
 	descriptionRegex              = regexp.MustCompile(`(\"description\":\s\")(.+)(\",)`)
+	hexColorRegex                 = regexp.MustCompile(`([a-fA-F0-9]{6})`)
 	santaHat, emptyFist, snowBall image.Image
 )
 
@@ -60,28 +63,74 @@ func season(contract *erc721.Erc721, season int) func(c echo.Context) error {
 	}
 }
 
+func validateBGColor(bgColor string) (*color.RGBA, error) {
+	// test if the passed in string is in hexadecimal
+	if hexColorRegex.MatchString(bgColor) {
+		// parse the integer from hexadecimal, base-16, 32-bit integer.
+		parsed, err := strconv.ParseInt(bgColor, 16, 32)
+
+		if err != nil {
+			return nil, errors.New("failed to parse integer")
+		}
+
+		return &color.RGBA{
+			R: uint8(parsed >> 16),
+			G: uint8((parsed >> 8) & 0xFF),
+			B: uint8(parsed & 0xFF),
+			A: 0xFF,
+		}, nil
+	}
+	return nil, errors.New("background color string is invalid hex")
+}
+
 func generate(c echo.Context, season int, contract *erc721.Erc721) error {
 	// TODO: implement caching of images on
 
+	var pfp bool
+	var whArray []string
+
 	path := c.Request().URL.Path
-
-	dimensions := c.Param("dimensions")
 	id, err := strconv.Atoi(c.Param("id"))
-
 	if err != nil {
 		return c.String(http.StatusBadRequest, err.Error())
 	}
 
-	whArray := strings.Split(dimensions, "x")
+	dimensions := c.Param("dimensions")
 
-	if len(whArray) != 2 {
-		return c.String(http.StatusBadRequest, "invalid length")
+	if strings.ToLower(dimensions) == "pfp" {
+		pfp = true
+		whArray = []string{"1200", "1200"}
+	} else {
+		whArray = strings.Split(dimensions, "x")
+
+		if len(whArray) != 2 {
+			return c.String(http.StatusBadRequest, "invalid length")
+		}
 	}
-
 	noBg := c.QueryParam("no-bg") != ""
 	santaHat := c.QueryParam("santa-hat") != ""
 	snowball := c.QueryParam("snowball") != ""
 	female := c.QueryParam("female") != ""
+	bgColorHex := c.QueryParam("bg-color")
+
+	var backgroundColor *color.RGBA
+
+	if bgColorHex != "" {
+
+		parsedColor, err := validateBGColor(bgColorHex)
+
+		if err != nil {
+			return c.String(http.StatusBadRequest, err.Error())
+		}
+
+		backgroundColor = parsedColor
+
+		path += "_bg_color_" + bgColorHex
+	}
+
+	if pfp {
+		path += "_pfp_crop"
+	}
 
 	if noBg {
 		path += "_no_bg" // build on to the paths based on the passed in parameters
@@ -184,6 +233,9 @@ func generate(c echo.Context, season int, contract *erc721.Erc721) error {
 	imgGen.Snowball = snowball
 	imgGen.SeasonNumber = season
 	imgGen.Female = female
+	imgGen.BackgroundColor = backgroundColor
+
+	imgGen.PFP = pfp
 
 	finalImage := imgGen.Generate()
 
@@ -220,7 +272,6 @@ func main() {
 
 	e.GET("/s1/:dimensions/:id", season(s1contract, 1))
 	e.GET("/s2/:dimensions/:id", season(s2contract, 2))
-
 	if os.Getenv("CERT") != "" && os.Getenv("KEY") != "" {
 		log.Fatalln(e.StartTLS(os.Getenv("HOST"), os.Getenv("CERT"), os.Getenv("KEY")))
 	} else {
