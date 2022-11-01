@@ -5,5 +5,5 @@ Citizen Gen is a relatively simple service, but still regardless, I have ambitio
 
 - [ ] Improve caching to use something like AWS S3 or Google Cloud Platform Storage Buckets vs just caching files locally to disk
 - [ ] Add statistics 
-- [ ] Improve profile picture generation to add a dynamic crop (in progress)
+- [x] Improve profile picture generation to add a dynamic crop (in progress)
 - [ ] Badges & profiles (social experiment)
