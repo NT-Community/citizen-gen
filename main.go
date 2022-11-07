@@ -23,6 +23,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
 var (
@@ -269,6 +270,8 @@ func main() {
 	}
 
 	e := echo.New() // create our new echo handler
+
+	e.Use(middleware.CORS())
 
 	e.GET("/s1/:dimensions/:id", season(s1contract, 1))
 	e.GET("/s2/:dimensions/:id", season(s2contract, 2))
