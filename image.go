@@ -4,7 +4,6 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
-	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -60,8 +59,6 @@ func (i *ImageGenerator) Generate() image.Image {
 
 	for idx, fetchedImg := range i.Layers {
 		img := fetchedImg.img
-
-		log.Println(fetchedImg.url)
 
 		if strings.Contains(fetchedImg.url, "helm") || strings.ContainsAny(fetchedImg.url, "hair") {
 			highest := findHighestColoredPixel(img, midPointX)

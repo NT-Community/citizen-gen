@@ -30,6 +30,12 @@ var (
 	descriptionRegex              = regexp.MustCompile(`(\"description\":\s\")(.+)(\",)`)
 	hexColorRegex                 = regexp.MustCompile(`([a-fA-F0-9]{6})`)
 	santaHat, emptyFist, snowBall image.Image
+
+	ColorCodedRarity = map[string]string{
+		"elite":   "faac27", // gold color for elite
+		"default": "849ef3",
+		"outer":   "b0d774",
+	}
 )
 
 // loads an image without any error checks
@@ -65,6 +71,12 @@ func season(contract *erc721.Erc721, season int) func(c echo.Context) error {
 }
 
 func validateBGColor(bgColor string) (*color.RGBA, error) {
+
+	// this essentially adds a shortcut for
+	if v, ok := ColorCodedRarity[strings.ToLower(bgColor)]; ok {
+		bgColor = v
+	}
+
 	// test if the passed in string is in hexadecimal
 	if hexColorRegex.MatchString(bgColor) {
 		// parse the integer from hexadecimal, base-16, 32-bit integer.

@@ -3,6 +3,7 @@ module github.com/NT-community/citizen-gen
 go 1.16
 
 require (
+	github.com/anaskhan96/soup v1.2.5 // indirect
 	github.com/disintegration/imaging v1.6.2
 	github.com/ethereum/go-ethereum v1.10.13
 	github.com/joho/godotenv v1.4.0
