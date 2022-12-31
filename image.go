@@ -55,14 +55,13 @@ func (i *ImageGenerator) Generate() image.Image {
 	}
 
 	midPointX := base.Bounds().Dx() / 2
-	highestPixelY := base.Bounds().Dy() / 12
+	highestPixelY := 128
 
 	for idx, fetchedImg := range i.Layers {
 		img := fetchedImg.img
 
-		if strings.Contains(fetchedImg.url, "helm") || strings.ContainsAny(fetchedImg.url, "hair") {
+		if strings.Contains(fetchedImg.url, "helm") || strings.Contains(fetchedImg.url, "hair") {
 			highest := findHighestColoredPixel(img, midPointX)
-
 			if highest < highestPixelY {
 				highestPixelY = highest
 			}
@@ -96,7 +95,12 @@ func (i *ImageGenerator) Generate() image.Image {
 	if i.PFP {
 		startX := midPointX
 		startY := highestPixelY
-		finalizedImage = imaging.Crop(finalizedImage, image.Rect(startX-320, startY, startX+320, startY+640))
+		endY := (startY + 640)
+
+		if startY < 0 {
+			endY += 640 - (startY + 640)
+		}
+		finalizedImage = imaging.Crop(finalizedImage, image.Rect(startX-320, startY, startX+320, endY))
 	} else {
 		rw, rh := 0, 0
 		if base.Bounds().Dx() != i.Width {
@@ -116,16 +120,32 @@ func (i *ImageGenerator) Generate() image.Image {
 }
 
 func findHighestColoredPixel(img image.Image, x int) int {
+	highestY := 0
 	for y := 0; y < img.Bounds().Dy(); y++ {
 		color := img.At(x, y)
 		r, g, b, a := color.RGBA()
 
 		if r >= 0 && g >= 0 && b >= 0 && a > 0 {
-			return y - 10
+			highestY = y
+			break
 		}
 	}
 
-	return 0
+	size := 256
+
+	for mx := max(x-size/2, 0); mx < x+size/2; mx++ {
+		for my := max(highestY-(size/2), 0); my < highestY+(size/2); my++ {
+			color := img.At(mx, my)
+			r, g, b, a := color.RGBA()
+			if r >= 0 && g >= 0 && b >= 0 && a > 0 {
+				if highestY > my {
+					highestY = my
+				}
+			}
+		}
+	}
+
+	return highestY - 40
 }
 
 func newImageGenerator(w, h int, layers []*FetchedImage) *ImageGenerator {
