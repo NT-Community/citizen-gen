@@ -125,28 +125,33 @@ func generate(c echo.Context, season int, contract *erc721.Erc721) error {
 	snowball := c.QueryParam("snowball") != ""
 	female := c.QueryParam("female") != ""
 	bgColorHex := c.QueryParam("bg-color")
-
+	preview := c.QueryParam("crop_preview") != ""
 	var backgroundColor *color.RGBA
 
-	if bgColorHex != "" {
+	if preview {
+		// Crop preview is a special flag that will generate 640x640 PFP cropped image
+		path += "_crop_preview"
+	} else {
+		if bgColorHex != "" {
 
-		parsedColor, err := validateBGColor(bgColorHex)
+			parsedColor, err := validateBGColor(bgColorHex)
 
-		if err != nil {
-			return c.String(http.StatusBadRequest, err.Error())
+			if err != nil {
+				return c.String(http.StatusBadRequest, err.Error())
+			}
+
+			backgroundColor = parsedColor
+
+			path += "_bg_color_" + bgColorHex
 		}
 
-		backgroundColor = parsedColor
+		if pfp {
+			path += "_pfp_crop"
+		}
 
-		path += "_bg_color_" + bgColorHex
-	}
-
-	if pfp {
-		path += "_pfp_crop"
-	}
-
-	if noBg {
-		path += "_no_bg" // build on to the paths based on the passed in parameters
+		if noBg {
+			path += "_no_bg" // build on to the paths based on the passed in parameters
+		}
 	}
 
 	if santaHat {
@@ -161,6 +166,7 @@ func generate(c echo.Context, season int, contract *erc721.Erc721) error {
 	if female {
 		path += "_female"
 	}
+
 	seasonString := fmt.Sprintf("s%d", season)
 
 	if _, err := os.Stat(fmt.Sprintf("./images/%s.png", path)); err == nil {
@@ -241,6 +247,7 @@ func generate(c echo.Context, season int, contract *erc721.Erc721) error {
 
 	imgGen := newImageGenerator(width, height, fetchedImages)
 
+	imgGen.Preview = preview
 	imgGen.NoBackground = noBg
 	imgGen.SantaHat = santaHat
 	imgGen.Snowball = snowball

@@ -38,8 +38,8 @@ type FetchedImage struct {
 }
 
 type ImageGenerator struct {
-	Width, Height                                 int
-	NoBackground, SantaHat, Snowball, Female, PFP bool
+	Width, Height                                          int
+	NoBackground, SantaHat, Snowball, Female, PFP, Preview bool
 
 	BackgroundColor *color.RGBA
 
@@ -72,8 +72,7 @@ func (i *ImageGenerator) Generate() image.Image {
 
 			draw.Draw(base, base.Bounds(), img, image.Pt(0, 0), draw.Over)
 			continue
-
-		} else if i.NoBackground && idx == 0 {
+		} else if (i.NoBackground || i.Preview) && idx == 0 {
 			// don't draw background if requested otherwise
 			continue
 		}
@@ -92,7 +91,7 @@ func (i *ImageGenerator) Generate() image.Image {
 
 	var finalizedImage image.Image = base
 
-	if i.PFP {
+	if i.PFP || i.Preview {
 		startX := midPointX
 		startY := highestPixelY
 		endY := (startY + 640)
