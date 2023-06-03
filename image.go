@@ -33,8 +33,8 @@ var IPFSBuckets map[int]IPFSBucket = map[int]IPFSBucket{
 }
 
 type FetchedImage struct {
-	img image.Image
-	url string
+	Img image.Image
+	URL string
 }
 
 type ImageGenerator struct {
@@ -58,9 +58,9 @@ func (i *ImageGenerator) Generate() image.Image {
 	highestPixelY := 128
 
 	for idx, fetchedImg := range i.Layers {
-		img := fetchedImg.img
+		img := fetchedImg.Img
 
-		if strings.Contains(fetchedImg.url, "helm") || strings.Contains(fetchedImg.url, "hair") {
+		if strings.Contains(fetchedImg.URL, "helm") || strings.Contains(fetchedImg.URL, "hair") {
 			highest := findHighestColoredPixel(img, midPointX)
 			if highest < highestPixelY {
 				highestPixelY = highest
@@ -77,11 +77,11 @@ func (i *ImageGenerator) Generate() image.Image {
 			continue
 		}
 
-		if i.Snowball && strings.Contains(fetchedImg.url, "weapon") {
+		if i.Snowball && strings.Contains(fetchedImg.URL, "weapon") {
 			continue // don't render the weapon with a snowball
 		}
 
-		if i.Snowball && strings.Contains(fetchedImg.url, "hand") {
+		if i.Snowball && strings.Contains(fetchedImg.URL, "hand") {
 			img = emptyFist
 			draw.Draw(img.(*image.NRGBA), emptyFist.Bounds(), snowBall, image.Pt(0, 0), draw.Over)
 		}
@@ -147,7 +147,7 @@ func findHighestColoredPixel(img image.Image, x int) int {
 	return highestY - 40
 }
 
-func newImageGenerator(w, h int, layers []*FetchedImage) *ImageGenerator {
+func NewImageGenerator(w, h int, layers []*FetchedImage) *ImageGenerator {
 	return &ImageGenerator{
 		BackgroundColor: nil,
 		Width:           w,

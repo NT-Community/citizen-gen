@@ -19,11 +19,14 @@ import (
 	"strings"
 
 	"github.com/NT-community/citizen-gen/erc721"
+	"github.com/disintegration/imaging"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+
+	_ "image/jpeg"
 )
 
 var (
@@ -68,6 +71,36 @@ func season(contract *erc721.Erc721, season int) func(c echo.Context) error {
 	return func(c echo.Context) error {
 		return generate(c, season, contract)
 	}
+}
+
+func upscale(c echo.Context) error {
+	size := c.QueryParam("size")
+
+	whArray := strings.Split(size, "x")
+
+	if len(whArray) != 2 {
+		return c.String(http.StatusBadRequest, "invalid length")
+	}
+
+	width, err := strconv.Atoi(whArray[0])
+
+	if err != nil {
+		return c.String(http.StatusBadRequest, err.Error())
+	}
+
+	height, err := strconv.Atoi(whArray[1])
+
+	if err != nil {
+		return c.String(http.StatusBadRequest, err.Error())
+	}
+
+	img, _, err := image.Decode(c.Request().Body)
+
+	if err != nil {
+		return nil
+	}
+
+	return png.Encode(c.Response().Writer, imaging.Resize(img, width, height, imaging.NearestNeighbor))
 }
 
 func validateBGColor(bgColor string) (*color.RGBA, error) {
@@ -207,7 +240,7 @@ func generate(c echo.Context, season int, contract *erc721.Erc721) error {
 
 	xml, _ := base64.StdEncoding.DecodeString(strings.Split(string(decodedJson["image_data"]), ",")[1])
 
-	imgs, err := collectImages(xml)
+	imgs, err := CollectImages(xml)
 
 	if err != nil {
 		return c.String(http.StatusBadRequest, err.Error())
@@ -245,7 +278,7 @@ func generate(c echo.Context, season int, contract *erc721.Erc721) error {
 		fetchedImages = append(fetchedImages, img)
 	}
 
-	imgGen := newImageGenerator(width, height, fetchedImages)
+	imgGen := NewImageGenerator(width, height, fetchedImages)
 
 	imgGen.Preview = preview
 	imgGen.NoBackground = noBg
@@ -294,6 +327,7 @@ func main() {
 
 	e.GET("/s1/:dimensions/:id", season(s1contract, 1))
 	e.GET("/s2/:dimensions/:id", season(s2contract, 2))
+	e.POST("/upscale", upscale)
 	if os.Getenv("CERT") != "" && os.Getenv("KEY") != "" {
 		log.Fatalln(e.StartTLS(os.Getenv("HOST"), os.Getenv("CERT"), os.Getenv("KEY")))
 	} else {

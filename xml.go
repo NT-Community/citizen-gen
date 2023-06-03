@@ -8,7 +8,7 @@ type XMLImage struct {
 	Href string `xml:"href,attr"`
 }
 
-func collectImages(data []byte) ([]XMLImage, error) {
+func CollectImages(data []byte) ([]XMLImage, error) {
 	type Imgs struct {
 		XMLName xml.Name   `xml:"svg"`
 		Images  []XMLImage `xml:"image"`
