@@ -67,9 +67,9 @@ func init() {
 	snowBall = mustLoadImage("assets/emptyhand_snowball.png")
 }
 
-func season(contract *erc721.Erc721, season int) func(c echo.Context) error {
+func season(oldContract, newContract *erc721.Erc721, season int) func(c echo.Context) error {
 	return func(c echo.Context) error {
-		return generate(c, season, contract)
+		return generate(c, season, oldContract, newContract)
 	}
 }
 
@@ -129,7 +129,7 @@ func validateBGColor(bgColor string) (*color.RGBA, error) {
 	return nil, errors.New("background color string is invalid hex")
 }
 
-func generate(c echo.Context, season int, contract *erc721.Erc721) error {
+func generate(c echo.Context, season int, oldContract, newContract *erc721.Erc721) error {
 	// TODO: implement caching of images on
 
 	var pfp bool
@@ -222,10 +222,14 @@ func generate(c echo.Context, season int, contract *erc721.Erc721) error {
 		return c.String(http.StatusBadRequest, err.Error())
 	}
 
-	tokenUri, err := contract.TokenURI(nil, big.NewInt(int64(id)))
+	tokenUri, err := newContract.TokenURI(nil, big.NewInt(int64(id)))
 
 	if err != nil {
-		return c.String(http.StatusBadRequest, err.Error())
+		tokenUri, err = oldContract.TokenURI(nil, big.NewInt(int64(id)))
+
+		if err != nil {
+			return c.String(http.StatusBadRequest, err.Error())
+		}
 	}
 
 	rawJson, _ := base64.StdEncoding.DecodeString(strings.Split(tokenUri, ",")[1])
@@ -321,12 +325,24 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	s1v2contract, err := erc721.NewErc721(common.HexToAddress(os.Getenv("S1V2_CONTRACT")), client)
+
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	s2v2contract, err := erc721.NewErc721(common.HexToAddress(os.Getenv("S2V2_CONTRACT")), client)
+
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	e := echo.New() // create our new echo handler
 
 	e.Use(middleware.CORS())
 
-	e.GET("/s1/:dimensions/:id", season(s1contract, 1))
-	e.GET("/s2/:dimensions/:id", season(s2contract, 2))
+	e.GET("/s1/:dimensions/:id", season(s1contract, s1v2contract, 1))
+	e.GET("/s2/:dimensions/:id", season(s2contract, s2v2contract, 2))
 	e.POST("/upscale", upscale)
 	if os.Getenv("CERT") != "" && os.Getenv("KEY") != "" {
 		log.Fatalln(e.StartTLS(os.Getenv("HOST"), os.Getenv("CERT"), os.Getenv("KEY")))
