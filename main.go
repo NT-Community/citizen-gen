@@ -12,6 +12,7 @@ import (
 	"log"
 	"math/big"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -65,6 +66,54 @@ func init() {
 	santaHat = mustLoadImage("assets/santa_hat.png")
 	emptyFist = mustLoadImage("assets/empty_fist.png")
 	snowBall = mustLoadImage("assets/emptyhand_snowball.png")
+}
+
+func teardown(oldContract, newContract *erc721.Erc721, season int) func(c echo.Context) error {
+	return func(c echo.Context) error {
+		id, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			return c.String(http.StatusBadRequest, err.Error())
+		}
+
+		tokenUri, err := newContract.TokenURI(nil, big.NewInt(int64(id)))
+
+		if err != nil {
+			tokenUri, err = oldContract.TokenURI(nil, big.NewInt(int64(id)))
+
+			if err != nil {
+				return c.String(http.StatusNotFound, err.Error())
+			}
+		}
+
+		rawJson, _ := base64.StdEncoding.DecodeString(strings.Split(tokenUri, ",")[1])
+
+		rawJson = []byte(descriptionRegex.ReplaceAllString(string(rawJson), ""))
+
+		var decodedJson map[string]json.RawMessage
+
+		if err := json.Unmarshal(rawJson, &decodedJson); err != nil {
+			return c.String(http.StatusBadRequest, err.Error())
+		}
+
+		xml, _ := base64.StdEncoding.DecodeString(strings.Split(string(decodedJson["image_data"]), ",")[1])
+
+		imgs, err := CollectImages(xml)
+
+		partToUrl := map[string]string{}
+
+		for _, img := range imgs {
+			imgUrl, err := url.Parse(img.Href)
+
+			if err != nil {
+				return c.String(http.StatusInternalServerError, err.Error())
+			}
+
+			partName := strings.Split(imgUrl.Path, "/")[3] // strip the IPFS part
+			partToUrl[partName] = img.Href
+		}
+
+		return c.JSON(http.StatusOK, partToUrl)
+	}
 }
 
 func season(oldContract, newContract *erc721.Erc721, season int) func(c echo.Context) error {
@@ -130,8 +179,6 @@ func validateBGColor(bgColor string) (*color.RGBA, error) {
 }
 
 func generate(c echo.Context, season int, oldContract, newContract *erc721.Erc721) error {
-	// TODO: implement caching of images on
-
 	var pfp bool
 	var whArray []string
 
@@ -343,6 +390,10 @@ func main() {
 
 	e.GET("/s1/:dimensions/:id", season(s1contract, s1v2contract, 1))
 	e.GET("/s2/:dimensions/:id", season(s2contract, s2v2contract, 2))
+
+	e.GET("/s1/:id/teardown", teardown(s1contract, s1v2contract, 1))
+	e.GET("/s2/:id/teardown", teardown(s2contract, s2v2contract, 2))
+
 	e.POST("/upscale", upscale)
 	if os.Getenv("CERT") != "" && os.Getenv("KEY") != "" {
 		log.Fatalln(e.StartTLS(os.Getenv("HOST"), os.Getenv("CERT"), os.Getenv("KEY")))
