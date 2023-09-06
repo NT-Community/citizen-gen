@@ -1,16 +1,21 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"encoding/base64"
+	"image/png"
 	"math/big"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/NT-community/citizen-gen/erc721"
+	"github.com/chromedp/chromedp"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/labstack/echo/v4"
+	"github.com/tdewolff/canvas"
 )
 
 var (
@@ -45,7 +50,7 @@ var (
 	}
 )
 
-func part(season int, ethClient *ethclient.Client) func(ctx echo.Context) error {
+func part(season int, render bool, ethClient *ethclient.Client) func(ctx echo.Context) error {
 	return func(ctx echo.Context) error {
 		partType := strings.ToLower(ctx.Param("part"))
 		partId, err := strconv.Atoi(ctx.Param("id"))
@@ -99,6 +104,43 @@ func part(season int, ethClient *ethclient.Client) func(ctx echo.Context) error 
 				return ctx.String(http.StatusInternalServerError, err.Error())
 			}
 
+			if decoded.ContentType == "image/svg+xml" && render {
+
+				svgCanvas, err := canvas.ParseSVG(bytes.NewReader(decoded.Raw))
+
+				if err != nil {
+					return ctx.String(http.StatusInternalServerError, err.Error())
+				}
+
+				c, cancel := chromedp.NewContext(
+					context.Background(),
+					// chromedp.WithDebugf(log.Printf),
+				)
+				defer cancel()
+
+				// capture screenshot of an element
+				var buf []byte
+				// cnvs, err := canvas.ParseSVG(bytes.NewReader(decoded.Raw))\
+
+				w, h := int(svgCanvas.W*canvas.DefaultResolution.DPMM())*2, int(svgCanvas.H*canvas.DefaultResolution.DPMM())*2
+
+				// capture entire browser viewport, returning png with quality=90
+				if err := chromedp.Run(c, fullScreenshot(string(metadata.Image), 100, w, h, &buf)); err != nil {
+					return ctx.String(http.StatusInternalServerError, err.Error())
+				}
+
+				img, err := png.Decode(bytes.NewReader(buf))
+
+				if err != nil {
+					return ctx.String(http.StatusInternalServerError, err.Error())
+				}
+
+				// croppedImg := imaging.Crop(img, image.Rect(0, 0, )
+
+				return png.Encode(ctx.Response().Writer, img)
+
+			}
+
 			resp := ctx.Response()
 
 			resp.Header().Set("Content-Type", decoded.ContentType)
@@ -109,5 +151,13 @@ func part(season int, ethClient *ethclient.Client) func(ctx echo.Context) error 
 		}
 
 		return ctx.String(http.StatusBadRequest, "unknown part")
+	}
+}
+
+func fullScreenshot(urlstr string, quality int, w, h int, res *[]byte) chromedp.Tasks {
+	return chromedp.Tasks{
+		chromedp.Navigate(urlstr),
+		chromedp.EmulateViewport(int64(w), int64(h)),
+		chromedp.Screenshot("svg", res, chromedp.NodeVisible),
 	}
 }

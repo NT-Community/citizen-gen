@@ -394,8 +394,11 @@ func main() {
 	e.GET("/s1/:id/teardown", teardown(s1contract, s1v2contract, 1))
 	e.GET("/s2/:id/teardown", teardown(s2contract, s2v2contract, 2))
 
-	e.GET("/s1/parts/:part/:id", part(1, client))
-	e.GET("/s2/parts/:part/:id", part(2, client))
+	e.GET("/s1/parts/:part/:id", part(1, false, client))
+	e.GET("/s1/parts/:part/:id/render", part(1, true, client))
+
+	e.GET("/s2/parts/:part/:id", part(2, false, client))
+	e.GET("/s2/parts/:part/:id/render", part(2, true, client))
 
 	e.POST("/upscale", upscale)
 	if os.Getenv("CERT") != "" && os.Getenv("KEY") != "" {
