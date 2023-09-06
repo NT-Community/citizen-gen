@@ -29,6 +29,20 @@ var (
 			"item":     "0x0B8F04F2cA4f15d33274a27439412ab7639EFAd9",
 		},
 	}
+
+	LegacyPartsContracts = map[int]map[string]string{
+		1: {
+			"item":  "0x0938E3F7AC6D7f674FeD551c93f363109bda3AF9",
+			"vault": "0xab0b0dD7e4EaB0F9e31a539074a03f1C1Be80879",
+			"land":  "0x3C54b798b3aAD4F6089533aF3bdbD6ce233019bB",
+		},
+		2: {
+			"identity": "0x698FbAACA64944376e2CDC4CAD86eaa91362cF54",
+			"id":       "0x698FbAACA64944376e2CDC4CAD86eaa91362cF54",
+			"land":     "0xf90980AE7A44E2d18B9615396FF5E9252F1DF639",
+			"item":     "0x7AC66d40d80D2d8D1E45D6b5B10a1C9D1fd69354",
+		},
+	}
 )
 
 func part(season int, ethClient *ethclient.Client) func(ctx echo.Context) error {
@@ -50,7 +64,21 @@ func part(season int, ethClient *ethclient.Client) func(ctx echo.Context) error 
 			tokenUri, err := contract.TokenURI(nil, big.NewInt(int64(partId)))
 
 			if err != nil {
-				return ctx.String(http.StatusInternalServerError, err.Error())
+				if legacyContractAddr, ok := LegacyPartsContracts[season][partType]; !ok {
+					return ctx.String(http.StatusInternalServerError, err.Error())
+				} else {
+					legacyContract, err := erc721.NewErc721(common.HexToAddress(legacyContractAddr), ethClient)
+
+					if err != nil {
+						return ctx.String(http.StatusInternalServerError, err.Error())
+					}
+
+					tokenUri, err = legacyContract.TokenURI(nil, big.NewInt(int64(partId)))
+
+					if err != nil {
+						return ctx.String(http.StatusInternalServerError, err.Error())
+					}
+				}
 			}
 
 			rawMetadata, err := base64.StdEncoding.DecodeString(strings.Split(tokenUri, ",")[1])
