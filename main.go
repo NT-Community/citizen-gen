@@ -204,6 +204,7 @@ func generate(c echo.Context, season int, oldContract, newContract *erc721.Erc72
 	santaHat := c.QueryParam("santa-hat") != ""
 	snowball := c.QueryParam("snowball") != ""
 	female := c.QueryParam("female") != ""
+	noClothes := c.QueryParam("no-clothes") != ""
 	bgColorHex := c.QueryParam("bg-color")
 	preview := c.QueryParam("crop_preview") != ""
 	var backgroundColor *color.RGBA
@@ -245,6 +246,10 @@ func generate(c echo.Context, season int, oldContract, newContract *erc721.Erc72
 	// a citizen that was forced to be rendered using female traits
 	if female {
 		path += "_female"
+	}
+
+	if noClothes {
+		path += "_nc"
 	}
 
 	seasonString := fmt.Sprintf("s%d", season)
@@ -338,6 +343,7 @@ func generate(c echo.Context, season int, oldContract, newContract *erc721.Erc72
 	imgGen.SeasonNumber = season
 	imgGen.Female = female
 	imgGen.BackgroundColor = backgroundColor
+	imgGen.NoClothes = noClothes
 
 	imgGen.PFP = pfp
 

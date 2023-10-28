@@ -23,7 +23,7 @@ type IPFSBucket struct {
 // season => IPFS buckets based on male/female
 var IPFSBuckets map[int]IPFSBucket = map[int]IPFSBucket{
 	1: {
-		Male:   "QmPLW6u5MRut1b8iyVc47ET5zAj9VaG2GwyjcuKLoetWsT",
+		Male:   "QmZxhDwLcoK7cipX3Y1qMEpWUHExN7F2jCz7QNfGcexUEu",
 		Female: "QmPVfdHHdjyZb6BKHhwaJ1eEdCx9Jz4mvCn4KHiCJQaB8e",
 	},
 	2: {
@@ -38,8 +38,8 @@ type FetchedImage struct {
 }
 
 type ImageGenerator struct {
-	Width, Height                                          int
-	NoBackground, SantaHat, Snowball, Female, PFP, Preview bool
+	Width, Height                                                     int
+	NoBackground, SantaHat, Snowball, Female, NoClothes, PFP, Preview bool
 
 	BackgroundColor *color.RGBA
 
@@ -65,6 +65,10 @@ func (i *ImageGenerator) Generate() image.Image {
 			if highest < highestPixelY {
 				highestPixelY = highest
 			}
+		}
+
+		if strings.Contains(fetchedImg.URL, "cloth") && i.NoClothes {
+			continue
 		}
 
 		if idx == 0 && i.BackgroundColor != nil {
