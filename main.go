@@ -55,11 +55,7 @@ func mustLoadImage(path string) image.Image {
 
 func init() {
 	// load the .env file
-	err := godotenv.Load()
-
-	if err != nil {
-		log.Fatalln(err)
-	}
+	godotenv.Load()
 
 	os.Mkdir("images", os.ModePerm)
 
