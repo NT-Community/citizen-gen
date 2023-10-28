@@ -394,6 +394,10 @@ func main() {
 
 	e.Use(middleware.CORS())
 
+	e.GET("/healthcheck", func(c echo.Context) error {
+		return c.String(http.StatusOK, "OK")
+	})
+
 	e.GET("/s1/:dimensions/:id", season(s1contract, s1v2contract, 1))
 	e.GET("/s2/:dimensions/:id", season(s2contract, s2v2contract, 2))
 
