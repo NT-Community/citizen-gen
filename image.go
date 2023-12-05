@@ -60,6 +60,19 @@ func (i *ImageGenerator) Generate() image.Image {
 	for idx, fetchedImg := range i.Layers {
 		img := fetchedImg.Img
 
+		if strings.Contains(fetchedImg.URL, "body") && strings.Contains(fetchedImg.URL, "QmPVfdHHdjyZb6BKHhwaJ1eEdCx9Jz4mvCn4KHiCJQaB8e") {
+
+			if strings.HasSuffix(fetchedImg.URL, "5.png") {
+				bounds := fetchedImg.Img.Bounds()
+
+				// 300x300
+				if bounds.Dx()*bounds.Dy() == 90000 {
+					// Resize to 1200x1200
+					img = imaging.Resize(img, 1200, 1200, imaging.NearestNeighbor)
+				}
+			}
+		}
+
 		if strings.Contains(fetchedImg.URL, "helm") || strings.Contains(fetchedImg.URL, "hair") {
 			highest := findHighestColoredPixel(img, midPointX)
 			if highest < highestPixelY {
